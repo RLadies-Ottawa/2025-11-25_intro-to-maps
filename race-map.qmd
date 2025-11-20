@@ -1,0 +1,235 @@
+---
+title: "Design your own race map"
+author: "Reiko Okamoto"
+format: html
+editor: visual
+---
+
+Inspiration: <https://mrkyourmoment.com/en-ca/products/official-2025-tcs-sydney-marathon-print?variant=47047643070718>
+
+## Step 1: Load necessary packages
+
+```{r}
+library(tidyverse)
+library(here)
+library(trackeR)
+library(osmdata)
+library(sf)
+library(sysfonts)
+library(showtext)
+library(grid)
+```
+
+## Step 2: Wrangle running app data
+
+Tips!
+
+-   [Exporting GPX files from Strava](https://support.strava.com/hc/en-us/articles/216918437-Exporting-your-Data-and-Bulk-Export)
+-   [Exporting GPX files from Runkeeper](https://help.runkeeper.com/en/hc/how-to-export-your-runkeeper-data)
+
+### Load GPX file from Runkeeper
+
+```{r}
+# GPS coordinates captured at 4-second intervals
+points_df <- trackeR::readGPX(here("2025-07-13-090008.gpx")) |>
+  select(longitude, latitude)
+```
+
+### Convert coordinates to sf object
+
+```{r}
+points_sf <- st_as_sf(
+  points_df,
+  coords = c("longitude", "latitude"),
+  crs = 4326 # WGS 84
+)
+
+line_sf <- points_sf |> 
+  # collapse individual point rows into a single row containing all points
+  summarise(do_union = FALSE) |> 
+  # connect all points with a continuous line
+  st_cast("LINESTRING")
+```
+
+## Step 3: Wrangle OSM data
+
+### Define bounding box
+
+```{r}
+bbox <- c(
+  xmin = -75.74498,
+  ymin = 45.38766,
+  xmax = -75.71863,
+  ymax = 45.41050
+)
+```
+
+### Build Overpass query
+
+```{r}
+query <- opq(bbox = bbox)
+```
+
+### Extract OSM data
+
+```{r}
+# from ottawa-map.qmd
+# "major" roads
+roads_a <- query |> 
+  add_osm_feature(
+    key = "highway",
+    value = c(
+      "motorway", "trunk", "primary",
+      "motorway_link", "trunk_link", "primary_link"
+    )
+  ) |> 
+  osmdata_sf()
+
+# "minor" roads
+roads_b <- query |> 
+  add_osm_feature(
+    key = "highway",
+    value = c(
+      "secondary", "tertiary", "unclassified", "residential",
+      "secondary_link", "tertiary_link"
+    )
+  ) |> 
+  osmdata_sf()
+```
+
+#### Crop sf objects
+
+```{r}
+bbox_sf <- st_as_sfc(st_bbox(bbox, crs = 4326))
+
+roads_a_cropped <- st_crop(roads_a$osm_lines, bbox_sf)
+roads_b_cropped <- st_crop(roads_b$osm_lines, bbox_sf)
+```
+
+## Step 4: Visualize sf objects
+
+```{r}
+# define colour palette
+roads_colour <- "#1c3c51"
+route_colour <- "#ffffff"
+bkgd_colour <- "#0D1E2A"
+```
+
+```{r}
+plt <- ggplot() +
+  # major roads
+  geom_sf(
+    data = roads_a_cropped, colour = roads_colour, size = 0.8, alpha = 0.9
+  ) +
+  # minor roads
+  geom_sf(
+    data = roads_b_cropped, colour = roads_colour, size = 0.5, alpha = 0.7
+  ) +
+  # race route
+  geom_sf(
+    data = line_sf, colour = route_colour, size = 0.5
+  ) +
+  coord_sf(expand = FALSE) +
+  theme_void() +
+  theme(
+    panel.background = element_rect(fill = bkgd_colour)
+  )
+```
+
+## Step 7: Add text and export
+
+```{r}
+# define colour palette
+page_colour <- "#ffffff"
+text_colour <- "#000000"
+bib_no <- "#317"
+name <- "REIKO OKAMOTO"
+distance <- "5.00"
+time <- "28:29"
+month_day <- "JULY 13"
+year <- "2025"
+```
+
+```{r}
+sysfonts::font_add_google(
+  "Roboto Condensed",
+  "Roboto Condensed",
+  regular.wt = 400
+)
+png("race-map.png", width = 8, height = 10, units = "in", res = 300)
+showtext::showtext_begin()
+
+vp1 <- viewport(x = 0.5, y = 0.5, width = 1, height = 1)
+pushViewport(vp1)
+grid.rect(gp = gpar(fill = page_colour))
+upViewport()
+
+vp2 <- viewport(x = 0.5, y = 0.575, width = 0.9, height = 0.75)
+pushViewport(vp2)
+print(plt, newpage = FALSE)
+upViewport()
+
+vp3 <- viewport(x = 0.85, y = 0.15, width = 0.2, height = 0.05)
+pushViewport(vp3)
+grid.text(
+  bib_no, gp = gpar(fontfamily = "Roboto Condensed", fontsize = 24)
+)
+upViewport()
+
+vp4 <- viewport(x = 0.55, y = 0.15, width = 0.4, height = 0.05)
+pushViewport(vp4)
+grid.text(
+  name, gp = gpar(fontfamily = "Roboto Condensed", fontsize = 30)
+)
+upViewport()
+
+vp5 <- viewport(x = 0.65, y = 0.12, width = 0.6, height = 0.005)
+pushViewport(vp5)
+grid.rect(gp = gpar(fill = text_colour))
+upViewport()
+
+vp6 <- viewport(x = 0.85, y = 0.095, width = 0.2, height = 0.04)
+pushViewport(vp6)
+grid.text(
+  distance, gp = gpar(fontfamily = "Roboto Condensed", fontsize = 24)
+)
+upViewport()
+
+vp7 <- viewport(x = 0.65, y = 0.095, width = 0.2, height = 0.04)
+pushViewport(vp7)
+grid.text(
+  time, gp = gpar(fontfamily = "Roboto Condensed", fontsize = 24)
+)
+upViewport()
+
+vp8 <- viewport(x = 0.45, y = 0.095, width = 0.2, height = 0.04)
+pushViewport(vp8)
+grid.text(
+  month_day, gp = gpar(fontfamily = "Roboto Condensed", fontsize = 24)
+)
+upViewport()
+
+vp9 <- viewport(x = 0.85, y = 0.06, width = 0.2, height = 0.02)
+pushViewport(vp9)
+grid.text(
+  "KM", gp = gpar(fontfamily = "Roboto Condensed", fontsize = 14)
+)
+upViewport()
+
+vp10 <- viewport(x = 0.65, y = 0.06, width = 0.2, height = 0.02)
+pushViewport(vp10)
+grid.text(
+  "TIME", gp = gpar(fontfamily = "Roboto Condensed", fontsize = 14)
+)
+upViewport()
+
+vp11 <- viewport(x = 0.45, y = 0.06, width = 0.2, height = 0.02)
+pushViewport(vp11)
+grid.text(
+  year, gp = gpar(fontfamily = "Roboto Condensed", fontsize = 14)
+)
+upViewport()
+
+showtext::showtext_end()
+dev.off()
+```
