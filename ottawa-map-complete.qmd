@@ -234,31 +234,31 @@ dev.off()
 ## How to find which features you can plot
 
 ```{r}
-keys_to_check <- c("natural", "landuse", "leisure", "water")
-
-# return all key-value pairs for selected keys within bounding box
-# warning: large bounding boxes can be computationally heavy!
-get_available_tags <- function(key, bbox) {
-  q <- opq(bbox) |> 
-    add_osm_feature(key = key)
-  osm_data <- osmdata_sf(q)
-  
-  # Extract unique values from all geometry types
-  values <- c()
-  if (!is.null(osm_data$osm_points)) 
-    values <- c(values, unique(osm_data$osm_points[[key]]))
-  if (!is.null(osm_data$osm_polygons)) 
-    values <- c(values, unique(osm_data$osm_polygons[[key]]))
-  if (!is.null(osm_data$osm_multipolygons)) 
-    values <- c(values, unique(osm_data$osm_multipolygons[[key]]))
-  
-  return(unique(values[!is.na(values)]))
-}
-
-for (key in keys_to_check) {
-  values <- get_available_tags(key, bbox)
-  cat(sprintf("%s: %s\n", key, paste(values, collapse=", ")))
-}
+# keys_to_check <- c("natural", "landuse", "leisure", "water")
+# 
+# # return all key-value pairs for selected keys within bounding box
+# # warning: large bounding boxes can be computationally heavy!
+# get_available_tags <- function(key, bbox) {
+#   q <- opq(bbox) |> 
+#     add_osm_feature(key = key)
+#   osm_data <- osmdata_sf(q)
+#   
+#   # Extract unique values from all geometry types
+#   values <- c()
+#   if (!is.null(osm_data$osm_points)) 
+#     values <- c(values, unique(osm_data$osm_points[[key]]))
+#   if (!is.null(osm_data$osm_polygons)) 
+#     values <- c(values, unique(osm_data$osm_polygons[[key]]))
+#   if (!is.null(osm_data$osm_multipolygons)) 
+#     values <- c(values, unique(osm_data$osm_multipolygons[[key]]))
+#   
+#   return(unique(values[!is.na(values)]))
+# }
+# 
+# for (key in keys_to_check) {
+#   values <- get_available_tags(key, bbox)
+#   cat(sprintf("%s: %s\n", key, paste(values, collapse=", ")))
+# }
 ```
 
 ## References
