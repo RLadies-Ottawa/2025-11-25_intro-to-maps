@@ -106,6 +106,15 @@ roads_a_cropped <- st_crop(roads_a$osm_lines, bbox_sf)
 roads_b_cropped <- st_crop(roads_b$osm_lines, bbox_sf)
 ```
 
+**Posit Cloud users:** For some reason, cropping in Posit Cloud gives error: `Error in geos_op2_geom("intersection", x, y, ...) : st_crs(x) == st_crs(y) is not TRUE`. I'm not sure if this is the most graceful solution, but replace the previous code chunk with this one to bypass the error (we have to explicitly set the CRS of the OSM data).
+
+```{r}
+bbox_sf <- st_as_sfc(st_bbox(bbox, crs = 4326))
+
+roads_a_cropped <- roads_a$osm_lines |> st_set_crs(4326) |> st_crop(bbox_sf)
+roads_b_cropped <- roads_b$osm_lines |> st_set_crs(4326) |> st_crop(bbox_sf)
+```
+
 ## Step 4: Visualize sf objects
 
 ```{r}
